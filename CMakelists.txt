@@ -22,5 +22,6 @@ file(GLOB SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp)
 # Tworzenie pliku wykonywalnego
 add_executable(OpenGLProject ${SRC_FILES})
 
+
 # Linkowanie bibliotek
 target_link_libraries(OpenGLProject glad glfw ${CMAKE_DL_LIBS})
