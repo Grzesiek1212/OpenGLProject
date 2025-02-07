@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="C:\Users\Grzesiu\OneDrive\Pulpit\OpenGLProject\external\glad\src\glad.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\Grzesiu\OneDrive\Pulpit\OpenGLProject\CMakelists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{F410CB52-DBC6-39C9-9108-6FCD1FB566AB}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

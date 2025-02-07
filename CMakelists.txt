@@ -1,0 +1,26 @@
+cmake_minimum_required(VERSION 3.10)
+project(OpenGLProject)
+
+set(CMAKE_CXX_STANDARD 17)
+
+# Ścieżki do nagłówków
+include_directories(
+    ${PROJECT_SOURCE_DIR}/external/glad/include
+    ${PROJECT_SOURCE_DIR}/external/glfw/glfw-3.4/glfw-3.4/include
+)
+
+# Dodanie GLFW jako podprojektu
+add_subdirectory(${PROJECT_SOURCE_DIR}/external/glfw/glfw-3.4/glfw-3.4)
+
+# Dodanie GLAD jako biblioteki
+include_directories(${PROJECT_SOURCE_DIR}/external/glad/include)
+add_library(glad ${PROJECT_SOURCE_DIR}/external/glad/src/glad.c)
+
+# Pliki źródłowe projektu
+file(GLOB SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp)
+
+# Tworzenie pliku wykonywalnego
+add_executable(OpenGLProject ${SRC_FILES})
+
+# Linkowanie bibliotek
+target_link_libraries(OpenGLProject glad glfw ${CMAKE_DL_LIBS})
