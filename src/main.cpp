@@ -95,7 +95,45 @@ int main()
         shader.use();
 
         // Pobranie aktualnej macierzy widoku z kamery
-        glm::mat4 view = camera.GetViewMatrix();
+        glm::mat4 view;
+
+        if (activeCamera == TOP) {
+            // Kamera górna śledzi auto
+            glm::vec3 carPosition(carX, -1.78f, 2.0f);
+            glm::vec3 topViewPosition = carPosition + glm::vec3(0.0f, 20.0f, 10.0f);
+            topCamera.Position = topViewPosition;
+            topCamera.Front = glm::normalize(carPosition - topViewPosition);
+            view = topCamera.GetViewMatrix();
+        }
+        else if (activeCamera == FOLLOW) {
+            glm::vec3 carPosition(carX, -1.78f, 2.0f); // Pozycja auta
+
+            // Przesunięcie kamery na maskę (kamera PRZED autem)
+            glm::vec3 cameraOffset(1.0f, 1.0f, 0.0f); // -2.5f na X przesuwa kamerę przed samochód
+            glm::vec3 followViewPosition = carPosition + cameraOffset;
+
+            // Samochód jest obrócony o -90°, więc kamera powinna patrzeć wzdłuż osi Z
+            glm::vec3 frontDirection = glm::normalize(glm::vec3(-1.0f, 0.0f, 0.0f)); // Patrzy zgodnie z ruchem auta
+
+            // Ustawiamy prawidłowy kierunek UP dla kamery
+            glm::vec3 upDirection = glm::vec3(0.0f, 1.0f, 0.0f);
+
+            followCamera.Position = followViewPosition;
+            followCamera.Front = frontDirection;
+            followCamera.Up = upDirection;  // Zapewnia poprawne obrócenie kamery
+
+            // **Tworzymy macierz widoku ręcznie, zamiast GetViewMatrix**
+            view = glm::lookAt(followCamera.Position, followCamera.Position + followCamera.Front, followCamera.Up);
+        }
+
+
+
+
+        else {
+            // Domyślna kamera
+            view = camera.GetViewMatrix();
+        }
+
         shader.setMat4("view", view);
 
 
@@ -148,10 +186,11 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 // Obsługa wejścia z klawiatury
 void processInput(GLFWwindow* window, float deltaTime)
 {
+    static bool keyPressed = false;
+
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
-    // Ruch w przód, tył, lewo, prawo
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         camera.ProcessKeyboard(FORWARD, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
@@ -161,25 +200,39 @@ void processInput(GLFWwindow* window, float deltaTime)
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
 
-    // Obsługa roll (obrót wokół osi Z)
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
-        camera.ProcessRoll(-1.0f); // Obrót w lewo
+        camera.ProcessRoll(-1.0f);
     if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
-        camera.ProcessRoll(1.0f); // Obrót w prawo
+        camera.ProcessRoll(1.0f);
 
-    // Obsługa ruchu w górę i w dół
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
         camera.ProcessKeyboard(UP, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
         camera.ProcessKeyboard(DOWN, deltaTime);
 
-    if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
+    if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS && !keyPressed) {
         activeCamera = DEFAULT;
-    if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
+        keyPressed = true;
+        std::cout << "Active Camera: DEFAULT" << std::endl;
+    }
+    if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS && !keyPressed) {
         activeCamera = TOP;
-    if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS)
+        keyPressed = true;
+        std::cout << "Active Camera: TOP" << std::endl;
+    }
+    if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS && !keyPressed) {
         activeCamera = FOLLOW;
+        keyPressed = true;
+        std::cout << "Active Camera: FOLLOW" << std::endl;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_1) == GLFW_RELEASE &&
+        glfwGetKey(window, GLFW_KEY_2) == GLFW_RELEASE &&
+        glfwGetKey(window, GLFW_KEY_3) == GLFW_RELEASE) {
+        keyPressed = false;
+    }
 }
+
 
 // Obsługa ruchu myszką
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
