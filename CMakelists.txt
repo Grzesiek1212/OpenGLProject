@@ -7,6 +7,8 @@ set(CMAKE_CXX_STANDARD 17)
 include_directories(
     ${PROJECT_SOURCE_DIR}/external/glad/include
     ${PROJECT_SOURCE_DIR}/external/glfw/glfw-3.4/glfw-3.4/include
+    ${PROJECT_SOURCE_DIR}/src
+    ${PROJECT_SOURCE_DIR}/external
 )
 
 # Dodanie GLFW jako podprojektu
@@ -14,14 +16,57 @@ add_subdirectory(${PROJECT_SOURCE_DIR}/external/glfw/glfw-3.4/glfw-3.4)
 
 # Dodanie GLAD jako biblioteki
 include_directories(${PROJECT_SOURCE_DIR}/external/glad/include)
-add_library(glad ${PROJECT_SOURCE_DIR}/external/glad/src/glad.c)
+include_directories(${PROJECT_SOURCE_DIR}/external/glm)
+add_library(glad ${PROJECT_SOURCE_DIR}/external/glad/src/glad.c   "src/Sphere.h" "src/Sphere.cpp")
 
 # Pliki źródłowe projektu
-file(GLOB SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp)
+file(GLOB SRC_FILES
+${PROJECT_SOURCE_DIR}/src/*.cpp
+${PROJECT_SOURCE_DIR}/src/shaders/*.cpp
+)
 
 # Tworzenie pliku wykonywalnego
-add_executable(OpenGLProject ${SRC_FILES})
+add_executable(OpenGLProject ${SRC_FILES} "src/Model.h" "src/Mesh.h" "src/Mesh.cpp" "src/Model.cpp"   "src/Sphere.h" "src/Sphere.cpp")
 
+
+
+
+add_custom_command(TARGET OpenGLProject POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${PROJECT_SOURCE_DIR}/shadersGLSL ${PROJECT_BINARY_DIR}/shaders
+    COMMENT "Copying shaders")
+
+add_custom_command(TARGET OpenGLProject POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${PROJECT_SOURCE_DIR}/textures ${PROJECT_BINARY_DIR}/textures
+    COMMENT "Copying textures")
+
+add_custom_command(TARGET OpenGLProject POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${PROJECT_SOURCE_DIR}/models ${PROJECT_BINARY_DIR}/models
+    COMMENT "Copying models3D")
+
+message(STATUS "ASSIMP fetcher cmake loaded...")
+
+# -------------------------------
+# Fetch ASSIMP from github...
+# -------------------------------
+
+include(FetchContent)
+
+set(ASSIMP_BUILD_SHARED_LIBS OFF CACHE BOOL "Build Assimp as a static library")
+set(ASSIMP_INSTALL OFF CACHE BOOL "Do not install Assimp")
+set(ASSIMP_BUILD_ZLIB ON CACHE BOOL "Build own zlib")
+set(ASSIMP_WARNINGS_AS_ERRORS OFF CACHE BOOL "Warning no problems")
+
+FetchContent_Declare(
+        libASSIMP
+        GIT_REPOSITORY https://github.com/assimp/assimp
+        GIT_TAG v5.4.3
+        GIT_PROGRESS   TRUE
+)
+
+FetchContent_MakeAvailable(libASSIMP)
 
 # Linkowanie bibliotek
-target_link_libraries(OpenGLProject glad glfw ${CMAKE_DL_LIBS})
+target_link_libraries(OpenGLProject PRIVATE glad glfw ${CMAKE_DL_LIBS} assimp::assimp)

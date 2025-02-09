@@ -1,0 +1,11 @@
+Model Information:
+* title:	mesh vehicle
+* source:	https://sketchfab.com/3d-models/mesh-vehicle-644f73f29913418dab244ee8302a9186
+* author:	Romanov_13 (https://sketchfab.com/Romanov13)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "mesh vehicle" (https://sketchfab.com/3d-models/mesh-vehicle-644f73f29913418dab244ee8302a9186) by Romanov_13 (https://sketchfab.com/Romanov13) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
