@@ -17,7 +17,7 @@ add_subdirectory(${PROJECT_SOURCE_DIR}/external/glfw/glfw-3.4/glfw-3.4)
 # Dodanie GLAD jako biblioteki
 include_directories(${PROJECT_SOURCE_DIR}/external/glad/include)
 include_directories(${PROJECT_SOURCE_DIR}/external/glm)
-add_library(glad ${PROJECT_SOURCE_DIR}/external/glad/src/glad.c)
+add_library(glad ${PROJECT_SOURCE_DIR}/external/glad/src/glad.c "src/StreetLamp.h")
 
 # Pliki źródłowe projektu
 file(GLOB SRC_FILES
@@ -26,7 +26,7 @@ ${PROJECT_SOURCE_DIR}/src/shaders/*.cpp
 )
 
 # Tworzenie pliku wykonywalnego
-add_executable(OpenGLProject ${SRC_FILES} "src/Model.h" "src/Mesh.h" "src/Mesh.cpp" "src/Model.cpp" )
+add_executable(OpenGLProject ${SRC_FILES} "src/Model.h" "src/Mesh.h" "src/Mesh.cpp" "src/Model.cpp"  "src/StreetLamp.h")
 
 
 

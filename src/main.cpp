@@ -8,7 +8,7 @@
 #include <iostream>
 #include <fstream>
 #include "Camera.h"
-
+#include "StreetLamp.h"
 
 // Rozmiar okna
 const unsigned int SCR_WIDTH = 1300;
@@ -84,6 +84,15 @@ int main()
     float deltaTime = 0.0f;
     float lastFrame = 0.0f;
 
+    StreetLamp streetLamp(glm::vec3(-5.7f, 2.3f, 5.4f), // Pozycja
+        glm::vec3(0.0f, -1.0f, 0.0f), // Kierunek
+        glm::vec3(1.0f, 0.8f, 0.6f),  // Kolor
+        3.0f,                          // Intensywność
+        glm::cos(glm::radians(35.0f)), // Wewnętrzny kąt
+        glm::cos(glm::radians(35.5f)), // Zewnętrzny kąt
+        7.5f); // NOWE: Promień wpływu światła
+
+
     // Główna pętla renderująca
     while (!glfwWindowShouldClose(window))
     {
@@ -101,22 +110,35 @@ int main()
         shader.use();
 
         if (isNight) {
-            glm::vec3 lightColor = glm::vec3(0.2f, 0.2f, 0.5f); // Chłodne, słabe światło księżyca
-            glm::vec3 ambientColor = glm::vec3(0.05f, 0.05f, 0.1f); // Bardzo słabe światło otoczenia
-            glm::vec3 lightDirection = glm::vec3(0.1f, -1.0f, 0.2f); // Światło pada z góry pod kątem
+            glm::vec3 lightColor = glm::vec3(0.2f, 0.2f, 0.5f);
+            glm::vec3 ambientColor = glm::vec3(0.05f, 0.05f, 0.1f);
+            glm::vec3 lightDirection = glm::vec3(0.1f, -1.0f, 0.2f);
             shader.setVec3("lightDir", lightDirection);
             shader.setVec3("lightColor", lightColor);
             shader.setVec3("ambientColor", ambientColor);
         }
         else {
-            glm::vec3 lightColor = glm::vec3(1.2f, 1.1f, 0.9f); // Jasne, ciepłe światło dzienne
-            glm::vec3 ambientColor = glm::vec3(0.5f, 0.5f, 0.5f); // Jasne światło otoczenia
-            glm::vec3 lightDirection = glm::vec3(-0.2f, -1.0f, -0.3f); // Światło słoneczne
+            glm::vec3 lightColor = glm::vec3(1.2f, 1.1f, 0.9f);
+            glm::vec3 ambientColor = glm::vec3(0.5f, 0.5f, 0.5f);
+            glm::vec3 lightDirection = glm::vec3(-0.2f, -1.0f, -0.3f);
 
             shader.setVec3("lightDir", lightDirection);
             shader.setVec3("lightColor", lightColor);
             shader.setVec3("ambientColor", ambientColor);
         }
+
+        if (isNight) {
+            shader.setVec3("streetLight.position", streetLamp.position);
+            shader.setVec3("streetLight.direction", streetLamp.direction);
+            shader.setVec3("streetLight.color", streetLamp.color * streetLamp.intensity);
+            shader.setFloat("streetLight.cutoff", streetLamp.cutoff);
+            shader.setFloat("streetLight.outerCutoff", streetLamp.outerCutoff);
+            shader.setFloat("streetLight.radius", streetLamp.radius);
+        }
+        else {
+            shader.setVec3("streetLight.color", glm::vec3(0.0f)); // Wyłączenie latarni w dzień
+        }
+
         glm::mat4 view;
 
         if (activeCamera == TOP) {
@@ -269,68 +291,57 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 }
 
 void updateCarMovement(float deltaTime) {
-    static float turnProgress = 0.0f; // Śledzi postęp skrętu (0.0 - 1.0)
-    static float currentSpeed = 6.0f; // Aktualna prędkość auta
-    float normalSpeed = 6.0f;         // Standardowa prędkość
-    float turnSpeed = 2.0f;           // Prędkość podczas skrętu
-    float speedChangeRate = 3.0f;     // Tempo powrotu do normalnej prędkości
+    static float turnProgress = 0.0f; 
+    static float currentSpeed = 6.0f;
+    float normalSpeed = 6.0f;
+    float turnSpeed = 2.0f;
+    float speedChangeRate = 3.0f;
 
-    // Definicja zakrętu
-    float turnStartX = -63.5f;  // **Punkt początkowy zakrętu**
-    float turnEndX = -64.0f;    // **Punkt końcowy zakrętu**
-    float startZ = 1.5f;        // **Z w punkcie początkowym skrętu**
-    float endZ = 11.0f;          // **Z w punkcie końcowym skrętu**
+    float turnStartX = -63.5f; 
+    float turnEndX = -64.0f; 
+    float startZ = 1.5f; 
+    float endZ = 11.0f; 
 
     switch (carState) {
     case MOVING_FORWARD:
         if (carPosition.x > turnStartX) {
-            carPosition.x -= currentSpeed * deltaTime; // Jedzie prosto w lewo
+            carPosition.x -= currentSpeed * deltaTime; 
         }
         else {
-            carState = TURNING_RIGHT; // Rozpoczęcie łuku
+            carState = TURNING_RIGHT;
             turnProgress = 0.0f;
         }
         break;
 
     case TURNING_RIGHT:
         if (turnProgress < 1.0f) {
-            // 🚗 **Stopniowe zmniejszanie prędkości podczas skrętu**
             currentSpeed = glm::mix(normalSpeed, turnSpeed, turnProgress);
 
-            float t = turnProgress; // t od 0 do 1
-
-            // Dodajemy niewielki offset do Z, by łuk był nieco większy.
-            // Sinus zapewnia, że offset jest zerowy na początku (t=0) i na końcu (t=1),
-            // osiągając maksimum przy t = 0.5.
-            float arcOffset = sin(t * glm::pi<float>()) * 1.0f; // 1.0f – wartość regulacyjna
-
-            // **Interpolacja po łuku z dodatkiem offsetu w Z**
+            float t = turnProgress;
+            float arcOffset = sin(t * glm::pi<float>()) * 1.0f;
             carPosition.x = glm::mix(turnStartX, turnEndX, t);
-            carPosition.z = glm::mix(startZ, endZ, t) + arcOffset; // Z zawsze rośnie, z lekkim "wypukleniem"
-
-            // Płynna rotacja od -90° do 0°
+            carPosition.z = glm::mix(startZ, endZ, t) + arcOffset;
             carRotation = glm::mix(-90.0f, 0.0f, t);
 
-            turnProgress += (currentSpeed / normalSpeed) * deltaTime * 0.7f; // Płynne skręcanie
+            turnProgress += (currentSpeed / normalSpeed) * deltaTime * 0.7f;
         }
         else {
             carPosition.x = turnEndX;
-            carPosition.z = endZ; // **Gwarantujemy, że Z osiągnęło wartość końcową**
+            carPosition.z = endZ; 
             carState = MOVING_FORWARD_AFTER_TURN;
-            currentSpeed = turnSpeed; // Reset prędkości
+            currentSpeed = turnSpeed;
         }
         break;
 
     case MOVING_FORWARD_AFTER_TURN:
-        // 🚀 **Stopniowe przyspieszanie po zakręcie**
         currentSpeed = glm::mix(currentSpeed, normalSpeed, deltaTime * speedChangeRate);
-        carPosition.z += currentSpeed * deltaTime; // Jedzie prosto wzdłuż Z
+        carPosition.z += currentSpeed * deltaTime;
 
-        if (carPosition.z > 48.0f) { // Reset cyklu
+        if (carPosition.z > 48.0f) { 
             carPosition = glm::vec3(55.0f, -1.78f, 2.0f);
             carRotation = -90.0f;
             carState = MOVING_FORWARD;
-            currentSpeed = normalSpeed; // Resetujemy prędkość
+            currentSpeed = normalSpeed;
         }
         break;
     }
