@@ -7,8 +7,9 @@
 #include "Model.h"
 #include <iostream>
 #include <fstream>
-#include "Camera.h"  // Dodajemy obsługę kamery
+#include "Camera.h"
 #include "Sphere.h"
+
 
 // Rozmiar okna
 const unsigned int SCR_WIDTH = 800;
@@ -16,25 +17,28 @@ const unsigned int SCR_HEIGHT = 600;
 
 // Kamera
 enum CameraMode { DEFAULT, TOP, FOLLOW };
-CameraMode activeCamera = DEFAULT; // Domyślna kamera
+CameraMode activeCamera = DEFAULT;
 
-Camera topCamera(glm::vec3(0.0f, 20.0f, 10.0f));  // Kamera nad miastem
-Camera followCamera(glm::vec3(0.0f, 2.0f, 5.0f)); // Kamera za samochodem
+Camera topCamera(glm::vec3(0.0f, 20.0f, 10.0f));
+Camera followCamera(glm::vec3(0.0f, 2.0f, 5.0f));
 Camera camera(glm::vec3(0.0f, 2.0f, 10.0f));
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
-float carX = 55.0f; // Startowa pozycja X samochodu
+glm::vec3 carPosition = glm::vec3(-30.0f, -1.78f, 1.5f);
+float carRotation = -90.0f;
+enum CarState { MOVING_FORWARD, TURNING_RIGHT, MOVING_FORWARD_AFTER_TURN };
+CarState carState = MOVING_FORWARD;
 
 // Obsługa wejścia
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window, float deltaTime);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
+void updateCarMovement(float deltaTime);
 
 int main()
 {
-    // Inicjalizacja GLFW
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -88,49 +92,34 @@ int main()
 
         processInput(window, deltaTime);
 
-        // Czyszczenie ekranu
+        updateCarMovement(deltaTime);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         shader.use();
 
-        // Pobranie aktualnej macierzy widoku z kamery
         glm::mat4 view;
 
         if (activeCamera == TOP) {
-            // Kamera górna śledzi auto
-            glm::vec3 carPosition(carX, -1.78f, 2.0f);
-            glm::vec3 topViewPosition = carPosition + glm::vec3(0.0f, 20.0f, 10.0f);
-            topCamera.Position = topViewPosition;
-            topCamera.Front = glm::normalize(carPosition - topViewPosition);
-            view = topCamera.GetViewMatrix();
+            glm::vec3 topViewPosition = glm::vec3(-68.0f, 12.0f, -11.0f);
+            glm::vec3 upDirection(0.0f, 1.0f, 0.0f);
+
+            view = glm::lookAt(topViewPosition, carPosition, upDirection);
         }
+
         else if (activeCamera == FOLLOW) {
-            glm::vec3 carPosition(carX, -1.78f, 2.0f); // Pozycja auta
-
-            // Przesunięcie kamery na maskę (kamera PRZED autem)
-            glm::vec3 cameraOffset(1.0f, 1.0f, 0.0f); // -2.5f na X przesuwa kamerę przed samochód
-            glm::vec3 followViewPosition = carPosition + cameraOffset;
-
-            // Samochód jest obrócony o -90°, więc kamera powinna patrzeć wzdłuż osi Z
-            glm::vec3 frontDirection = glm::normalize(glm::vec3(-1.0f, 0.0f, 0.0f)); // Patrzy zgodnie z ruchem auta
-
-            // Ustawiamy prawidłowy kierunek UP dla kamery
-            glm::vec3 upDirection = glm::vec3(0.0f, 1.0f, 0.0f);
-
+            glm::vec3 defaultOffset(13.0f, 2.0f, 1.8f);
+            float deltaAngle = glm::radians(carRotation - (-90.0f));
+            glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), deltaAngle, glm::vec3(0.0f, 1.0f, 0.0f));
+            glm::vec3 rotatedOffset = glm::vec3(rotationMatrix * glm::vec4(defaultOffset, 1.0f));
+            glm::vec3 followViewPosition = carPosition + rotatedOffset;
+            glm::vec3 upDirection(0.0f, 1.0f, 0.0f);
+            view = glm::lookAt(followViewPosition, carPosition, upDirection);
             followCamera.Position = followViewPosition;
-            followCamera.Front = frontDirection;
-            followCamera.Up = upDirection;  // Zapewnia poprawne obrócenie kamery
-
-            // **Tworzymy macierz widoku ręcznie, zamiast GetViewMatrix**
-            view = glm::lookAt(followCamera.Position, followCamera.Position + followCamera.Front, followCamera.Up);
+            followCamera.Up = upDirection;
         }
-
-
-
-
         else {
-            // Domyślna kamera
+            // Domyśln kamera
             view = camera.GetViewMatrix();
         }
 
@@ -146,6 +135,7 @@ int main()
         shader.setMat4("model", cityModelMat);
         cityModel.Draw(shader);
 
+        // Kula
         shader.setBool("isSphere", true);
         glm::mat4 sphereModelMat = glm::mat4(1.0f);
         sphereModelMat = glm::translate(sphereModelMat, glm::vec3(0.0f, 5.0f, 0.0f));
@@ -155,15 +145,11 @@ int main()
         shader.setBool("isSphere", false);
 
 
-        if (carX >= -70.0f)
-            carX -= deltaTime * 6.0f; // Prędkość ruchu samochodu
-        else
-            carX = 55.0f;
-
+        // Rysowanie samochodu
         glm::mat4 carModelMat = glm::mat4(1.0f);
-        carModelMat = glm::translate(carModelMat, glm::vec3(carX, -1.78f, 2.0f));
+        carModelMat = glm::translate(carModelMat, carPosition);
         carModelMat = glm::scale(carModelMat, glm::vec3(0.1f, 0.1f, 0.1f));
-        carModelMat = glm::rotate(carModelMat, glm::radians(-90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        carModelMat = glm::rotate(carModelMat, glm::radians(carRotation), glm::vec3(0.0f, 1.0f, 0.0f));
 
         shader.setMat4("model", carModelMat);
         carmodel.Draw(shader);
@@ -177,13 +163,11 @@ int main()
     return 0;
 }
 
-// Obsługa zmiany rozmiaru okna
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
     glViewport(0, 0, width, height);
 }
 
-// Obsługa wejścia z klawiatury
 void processInput(GLFWwindow* window, float deltaTime)
 {
     static bool keyPressed = false;
@@ -233,8 +217,6 @@ void processInput(GLFWwindow* window, float deltaTime)
     }
 }
 
-
-// Obsługa ruchu myszką
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
     if (firstMouse)
@@ -252,8 +234,78 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
     camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
-// Obsługa scrolla myszy
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
     camera.ProcessMouseScroll(yoffset);
 }
+
+void updateCarMovement(float deltaTime) {
+    static float turnProgress = 0.0f; // Śledzi postęp skrętu (0.0 - 1.0)
+    static float currentSpeed = 6.0f; // Aktualna prędkość auta
+    float normalSpeed = 6.0f;         // Standardowa prędkość
+    float turnSpeed = 2.0f;           // Prędkość podczas skrętu
+    float speedChangeRate = 3.0f;     // Tempo powrotu do normalnej prędkości
+
+    // Definicja zakrętu
+    float turnStartX = -63.5f;  // **Punkt początkowy zakrętu**
+    float turnEndX = -64.0f;    // **Punkt końcowy zakrętu**
+    float startZ = 1.5f;        // **Z w punkcie początkowym skrętu**
+    float endZ = 11.0f;          // **Z w punkcie końcowym skrętu**
+
+    switch (carState) {
+    case MOVING_FORWARD:
+        if (carPosition.x > turnStartX) {
+            carPosition.x -= currentSpeed * deltaTime; // Jedzie prosto w lewo
+        }
+        else {
+            carState = TURNING_RIGHT; // Rozpoczęcie łuku
+            turnProgress = 0.0f;
+        }
+        break;
+
+    case TURNING_RIGHT:
+        if (turnProgress < 1.0f) {
+            // 🚗 **Stopniowe zmniejszanie prędkości podczas skrętu**
+            currentSpeed = glm::mix(normalSpeed, turnSpeed, turnProgress);
+
+            float t = turnProgress; // t od 0 do 1
+
+            // Dodajemy niewielki offset do Z, by łuk był nieco większy.
+            // Sinus zapewnia, że offset jest zerowy na początku (t=0) i na końcu (t=1),
+            // osiągając maksimum przy t = 0.5.
+            float arcOffset = sin(t * glm::pi<float>()) * 1.0f; // 1.0f – wartość regulacyjna
+
+            // **Interpolacja po łuku z dodatkiem offsetu w Z**
+            carPosition.x = glm::mix(turnStartX, turnEndX, t);
+            carPosition.z = glm::mix(startZ, endZ, t) + arcOffset; // Z zawsze rośnie, z lekkim "wypukleniem"
+
+            // Płynna rotacja od -90° do 0°
+            carRotation = glm::mix(-90.0f, 0.0f, t);
+
+            turnProgress += (currentSpeed / normalSpeed) * deltaTime * 0.7f; // Płynne skręcanie
+        }
+        else {
+            carPosition.x = turnEndX;
+            carPosition.z = endZ; // **Gwarantujemy, że Z osiągnęło wartość końcową**
+            carState = MOVING_FORWARD_AFTER_TURN;
+            currentSpeed = turnSpeed; // Reset prędkości
+        }
+        break;
+
+    case MOVING_FORWARD_AFTER_TURN:
+        // 🚀 **Stopniowe przyspieszanie po zakręcie**
+        currentSpeed = glm::mix(currentSpeed, normalSpeed, deltaTime * speedChangeRate);
+        carPosition.z += currentSpeed * deltaTime; // Jedzie prosto wzdłuż Z
+
+        if (carPosition.z > 48.0f) { // Reset cyklu
+            carPosition = glm::vec3(55.0f, -1.78f, 2.0f);
+            carRotation = -90.0f;
+            carState = MOVING_FORWARD;
+            currentSpeed = normalSpeed; // Resetujemy prędkość
+        }
+        break;
+    }
+}
+
+
+
