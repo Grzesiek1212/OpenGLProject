@@ -27,8 +27,21 @@ struct StreetLight {
 };
 uniform StreetLight streetLight;
 
+struct CarHeadlight {
+    vec3 position;
+    vec3 direction;
+    vec3 color;
+    float cutoff;
+    float outerCutoff;
+    float radius;
+};
+uniform CarHeadlight headlightLeft;
+uniform CarHeadlight headlightRight;
+
+
 vec3 CalculatePhongLighting(vec3 normal, vec3 fragPos, vec3 objectColor, float roughness);
 vec3 CalculateStreetLight(vec3 normal, vec3 fragPos);
+vec3 CalculateHeadlight(vec3 normal, vec3 fragPos, CarHeadlight headlight);
 
 void main()
 {
@@ -47,9 +60,44 @@ void main()
     // Dodanie œwiat³a latarni
     lighting += CalculateStreetLight(normalize(fragNormal), fragPos);
 
+     // Dodanie œwiate³ reflektorów
+    lighting += CalculateHeadlight(normalize(fragNormal), fragPos, headlightLeft);
+    lighting += CalculateHeadlight(normalize(fragNormal), fragPos, headlightRight);
+
     // Ustawienie koñcowego koloru
     FragColor = vec4(lighting, 1.0);
 }
+
+
+vec3 CalculateHeadlight(vec3 normal, vec3 fragPos, CarHeadlight headlight)
+{
+    vec3 toLight = headlight.position - fragPos;
+    float distance = length(toLight);
+    vec3 lightDirNorm = normalize(toLight);
+
+    float theta = dot(lightDirNorm, normalize(-headlight.direction));
+
+    // Gaussowskie t³umienie œwiat³a (realistyczne rozproszenie)
+    float gaussianFactor = exp(-pow(distance / headlight.radius, 2.5));
+
+    // Intensywnoœæ sto¿ka œwiat³a (p³ynne przejœcie)
+    float spotlightIntensity = smoothstep(headlight.outerCutoff, headlight.cutoff, theta);
+    spotlightIntensity = pow(spotlightIntensity, 2.0); // Wzmocnienie efektu
+
+    // Efekt halo - dodajemy lekkie poœwiaty wokó³ œwiate³
+    float halo = exp(-pow(distance / (headlight.radius * 0.7), 2.0)) * 0.2;
+
+    // Œwiat³o odbite od pod³o¿a
+    vec3 reflectDir = reflect(-lightDirNorm, normal);
+    float spec = pow(max(dot(viewPos - fragPos, reflectDir), 0.0), 16.0);
+
+    // Efekt mg³y - zmniejsza intensywnoœæ œwiat³a wraz z odleg³oœci¹
+    float fog = exp(-distance * 0.04);
+
+    // Finalne œwiat³o reflektorów
+    return headlight.color * spotlightIntensity * gaussianFactor * (1.0 + spec + halo) * fog;
+}
+
 
 
 vec3 CalculateStreetLight(vec3 normal, vec3 fragPos)

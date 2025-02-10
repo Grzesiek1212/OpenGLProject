@@ -9,6 +9,7 @@
 #include <fstream>
 #include "Camera.h"
 #include "StreetLamp.h"
+#include "CarHeadlight.h"
 
 // Rozmiar okna
 const unsigned int SCR_WIDTH = 1300;
@@ -24,7 +25,7 @@ Camera camera(glm::vec3(0.0f, 2.0f, 10.0f));
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
-glm::vec3 carPosition = glm::vec3(-30.0f, -1.78f, 1.5f);
+glm::vec3 carPosition = glm::vec3(55.0f, -1.78f, 1.5f);
 float carRotation = -90.0f;
 enum CarState { MOVING_FORWARD, TURNING_RIGHT, MOVING_FORWARD_AFTER_TURN };
 CarState carState = MOVING_FORWARD;
@@ -79,18 +80,39 @@ int main()
     Model sphere("models/sphere/scene.gltf");
 
     // Macierz projekcji
-    glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+    glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000000.0f);
 
     float deltaTime = 0.0f;
     float lastFrame = 0.0f;
 
-    StreetLamp streetLamp(glm::vec3(-5.7f, 2.3f, 5.4f), // Pozycja
-        glm::vec3(0.0f, -1.0f, 0.0f), // Kierunek
-        glm::vec3(1.0f, 0.8f, 0.6f),  // Kolor
-        3.0f,                          // Intensywność
-        glm::cos(glm::radians(35.0f)), // Wewnętrzny kąt
-        glm::cos(glm::radians(35.5f)), // Zewnętrzny kąt
-        7.5f); // NOWE: Promień wpływu światła
+    StreetLamp streetLamp(glm::vec3(-5.7f, 2.3f, 5.4f),
+        glm::vec3(0.0f, -1.0f, 0.0f),
+        glm::vec3(1.0f, 0.8f, 0.6f),
+        3.0f,                       
+        glm::cos(glm::radians(35.0f)),
+        glm::cos(glm::radians(35.5f)),
+        7.5f);
+
+    CarHeadlight leftHeadlight(
+        glm::vec3(carPosition.x - 0.4f, carPosition.y + 0.2f, carPosition.z + 1.0f),
+        glm::vec3(0.0f, -0.2f, 1.0f),
+        glm::vec3(0.9f, 0.85f, 0.7f),
+        0.5f,                        
+        glm::cos(glm::radians(16.0f)),
+        glm::cos(glm::radians(22.0f)),
+        4.0f                       
+    );
+
+    CarHeadlight rightHeadlight(
+        glm::vec3(carPosition.x + 0.4f, carPosition.y + 0.2f, carPosition.z + 1.0f),
+        glm::vec3(0.0f, -0.2f, 1.0f),
+        glm::vec3(0.9f, 0.85f, 0.7f),
+        0.5f,                         
+        glm::cos(glm::radians(16.0f)),
+        glm::cos(glm::radians(22.0f)),
+        4.0f                          
+    );
+
 
 
     // Główna pętla renderująca
@@ -127,6 +149,7 @@ int main()
             shader.setVec3("ambientColor", ambientColor);
         }
 
+        // latarina
         if (isNight) {
             shader.setVec3("streetLight.position", streetLamp.position);
             shader.setVec3("streetLight.direction", streetLamp.direction);
@@ -138,6 +161,37 @@ int main()
         else {
             shader.setVec3("streetLight.color", glm::vec3(0.0f)); // Wyłączenie latarni w dzień
         }
+
+        // reflektory
+         
+        glm::vec3 headlightOffsetLeft = glm::vec3(1.2f, 0.3f, -5.2f);
+        glm::vec3 headlightOffsetRight = glm::vec3(2.2f, 0.3f, -5.2f);
+        glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), glm::radians(carRotation), glm::vec3(0.0f, 1.0f, 0.0f));
+
+        leftHeadlight.position = carPosition + glm::vec3(rotationMatrix * glm::vec4(headlightOffsetLeft, 1.0f));
+        rightHeadlight.position = carPosition + glm::vec3(rotationMatrix * glm::vec4(headlightOffsetRight, 1.0f));
+
+        glm::vec3 headlightDirection = glm::vec3(0.0f, -0.3f, 1.0f);
+        leftHeadlight.direction = glm::vec3(rotationMatrix * glm::vec4(headlightDirection, 0.0f));
+        rightHeadlight.direction = glm::vec3(rotationMatrix * glm::vec4(headlightDirection, 0.0f));
+
+        // Przekazanie do shadera
+        shader.setVec3("headlightLeft.position", leftHeadlight.position);
+        shader.setVec3("headlightLeft.direction", leftHeadlight.direction);
+        shader.setVec3("headlightLeft.color", leftHeadlight.color * leftHeadlight.intensity);
+        shader.setFloat("headlightLeft.cutoff", leftHeadlight.cutoff);
+        shader.setFloat("headlightLeft.outerCutoff", leftHeadlight.outerCutoff);
+        shader.setFloat("headlightLeft.radius", leftHeadlight.radius);
+
+        shader.setVec3("headlightRight.position", rightHeadlight.position);
+        shader.setVec3("headlightRight.direction", rightHeadlight.direction);
+        shader.setVec3("headlightRight.color", rightHeadlight.color * rightHeadlight.intensity);
+        shader.setFloat("headlightRight.cutoff", rightHeadlight.cutoff);
+        shader.setFloat("headlightRight.outerCutoff", rightHeadlight.outerCutoff);
+        shader.setFloat("headlightRight.radius", rightHeadlight.radius);
+        
+
+
 
         glm::mat4 view;
 
