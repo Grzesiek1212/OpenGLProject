@@ -8,12 +8,11 @@
 #include <iostream>
 #include <fstream>
 #include "Camera.h"
-#include "Sphere.h"
 
 
 // Rozmiar okna
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
+const unsigned int SCR_WIDTH = 1300;
+const unsigned int SCR_HEIGHT = 900;
 
 // Kamera
 enum CameraMode { DEFAULT, TOP, FOLLOW };
@@ -29,6 +28,8 @@ glm::vec3 carPosition = glm::vec3(-30.0f, -1.78f, 1.5f);
 float carRotation = -90.0f;
 enum CarState { MOVING_FORWARD, TURNING_RIGHT, MOVING_FORWARD_AFTER_TURN };
 CarState carState = MOVING_FORWARD;
+bool isNight = false;
+
 
 // Obsługa wejścia
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -75,7 +76,7 @@ int main()
     // Wczytanie modeli
     Model carmodel("models/car/scene.gltf");
     Model cityModel("models/city/scene.gltf");
-    Sphere sphere(1.0f);
+    Model sphere("models/sphere/scene.gltf");
 
     // Macierz projekcji
     glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
@@ -93,11 +94,29 @@ int main()
         processInput(window, deltaTime);
 
         updateCarMovement(deltaTime);
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+
+        isNight ? glClearColor(0.02f, 0.02f, 0.1f, 1.0f) : glClearColor(0.6f, 0.8f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         shader.use();
 
+        if (isNight) {
+            glm::vec3 lightColor = glm::vec3(0.2f, 0.2f, 0.5f); // Chłodne, słabe światło księżyca
+            glm::vec3 ambientColor = glm::vec3(0.05f, 0.05f, 0.1f); // Bardzo słabe światło otoczenia
+            glm::vec3 lightDirection = glm::vec3(0.1f, -1.0f, 0.2f); // Światło pada z góry pod kątem
+            shader.setVec3("lightDir", lightDirection);
+            shader.setVec3("lightColor", lightColor);
+            shader.setVec3("ambientColor", ambientColor);
+        }
+        else {
+            glm::vec3 lightColor = glm::vec3(1.2f, 1.1f, 0.9f); // Jasne, ciepłe światło dzienne
+            glm::vec3 ambientColor = glm::vec3(0.5f, 0.5f, 0.5f); // Jasne światło otoczenia
+            glm::vec3 lightDirection = glm::vec3(-0.2f, -1.0f, -0.3f); // Światło słoneczne
+
+            shader.setVec3("lightDir", lightDirection);
+            shader.setVec3("lightColor", lightColor);
+            shader.setVec3("ambientColor", ambientColor);
+        }
         glm::mat4 view;
 
         if (activeCamera == TOP) {
@@ -124,7 +143,7 @@ int main()
         }
 
         shader.setMat4("view", view);
-
+        shader.setVec3("viewPos", camera.Position);
 
         shader.setMat4("projection", projection);
 
@@ -136,13 +155,12 @@ int main()
         cityModel.Draw(shader);
 
         // Kula
-        shader.setBool("isSphere", true);
         glm::mat4 sphereModelMat = glm::mat4(1.0f);
         sphereModelMat = glm::translate(sphereModelMat, glm::vec3(0.0f, 5.0f, 0.0f));
         sphereModelMat = glm::scale(sphereModelMat, glm::vec3(1.5f, 1.5f, 1.5f));
+        sphereModelMat = glm::scale(sphereModelMat, glm::vec3(0.1f, 0.1f, 0.1f));
         shader.setMat4("model", sphereModelMat);
         sphere.Draw(shader);
-        shader.setBool("isSphere", false);
 
 
         // Rysowanie samochodu
@@ -171,6 +189,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 void processInput(GLFWwindow* window, float deltaTime)
 {
     static bool keyPressed = false;
+    static bool keyNPPressed = false;
 
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
@@ -214,6 +233,16 @@ void processInput(GLFWwindow* window, float deltaTime)
         glfwGetKey(window, GLFW_KEY_2) == GLFW_RELEASE &&
         glfwGetKey(window, GLFW_KEY_3) == GLFW_RELEASE) {
         keyPressed = false;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS && !keyNPPressed) {
+        isNight = !isNight; // Przełącz tryb
+        keyNPPressed = true; // Zablokowanie zmiany do momentu puszczenia klawisza
+        std::cout << "Tryb: " << (isNight ? "Noc" : "Dzień") << std::endl;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_N) == GLFW_RELEASE) {
+        keyNPPressed = false; // Reset flagi po puszczeniu klawisza
     }
 }
 
