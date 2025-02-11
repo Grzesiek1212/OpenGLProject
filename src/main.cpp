@@ -12,7 +12,6 @@
 #include "Camera.h"
 #include "Renderer.h"
 
-// Rozmiar okna
 const unsigned int SCR_WIDTH = 1300;
 const unsigned int SCR_HEIGHT = 900;
 
