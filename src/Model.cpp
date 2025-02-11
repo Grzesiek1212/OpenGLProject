@@ -53,7 +53,7 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
 		vector.y = mesh->mNormals[i].y;
 		vector.z = mesh->mNormals[i].z;
 		vertex.Normal = vector;
-		if (mesh->mTextureCoords[0]) // does the mesh contain texture coordinates?
+		if (mesh->mTextureCoords[0])
 		{
 			glm::vec2 vec;
 			vec.x = mesh->mTextureCoords[0][i].x;
@@ -80,11 +80,9 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
 	{
 		aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 
-		// £adowanie diffuse maps
 		vector<Texture> diffuseMaps = loadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
 		textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
 
-		// £adowanie specular maps
 		vector<Texture> specularMaps = loadMaterialTextures(material, aiTextureType_SPECULAR, "texture_specular");
 		textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
 
@@ -92,7 +90,6 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
 
 	return Mesh(vertices, indices, textures);
 }
-
 
 unsigned int TextureFromFile(const char* path, const string& directory)
 {
@@ -155,13 +152,13 @@ vector<Texture> Model::loadMaterialTextures(aiMaterial* mat, aiTextureType type,
 			}
 		}
 		if (!skip)
-		{//iftexturehasn’tbeenloadedalready,loadit
+		{
 			Texture texture;
 			texture.id = TextureFromFile(str.C_Str(), directory);
 			texture.type = typeName;
 			texture.path = str.C_Str();
 			textures.push_back(texture);
-			textures_loaded.push_back(texture);//addtoloadedtextures
+			textures_loaded.push_back(texture);
 		}
 	}
 	return textures;

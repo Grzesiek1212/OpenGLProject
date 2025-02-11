@@ -9,18 +9,17 @@
 #include <assimp/postprocess.h>
 #include <vector>
 #include "Mesh.h"
-#include <shaders/Shader.h>
+#include <Shader.h>
 
 class Model
 {
 public:
-	explicit Model(const std::string& path) // Zmieniono typ argumentu
+	explicit Model(const std::string& path)
 	{
 		loadModel(path);
 	}
 	void Draw(Shader& shader);
 private:
-	// model data
 	vector<Mesh> meshes;
 	string directory;
 	vector<Texture>textures_loaded;
@@ -28,8 +27,7 @@ private:
 	void loadModel(string path);
 	void processNode(aiNode* node, const aiScene* scene);
 	Mesh processMesh(aiMesh* mesh, const aiScene* scene);
-	vector<Texture> loadMaterialTextures(aiMaterial* mat,
-		aiTextureType type, string typeName);
+	vector<Texture> loadMaterialTextures(aiMaterial* mat,aiTextureType type, string typeName);
 };
 
 #endif

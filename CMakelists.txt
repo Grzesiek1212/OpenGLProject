@@ -22,7 +22,6 @@ add_library(glad ${PROJECT_SOURCE_DIR}/external/glad/src/glad.c "src/StreetLamp.
 # Pliki źródłowe projektu
 file(GLOB SRC_FILES
 ${PROJECT_SOURCE_DIR}/src/*.cpp
-${PROJECT_SOURCE_DIR}/src/shaders/*.cpp
 )
 
 # Tworzenie pliku wykonywalnego
@@ -35,11 +34,6 @@ add_custom_command(TARGET OpenGLProject POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${PROJECT_SOURCE_DIR}/shadersGLSL ${PROJECT_BINARY_DIR}/shaders
     COMMENT "Copying shaders")
-
-add_custom_command(TARGET OpenGLProject POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${PROJECT_SOURCE_DIR}/textures ${PROJECT_BINARY_DIR}/textures
-    COMMENT "Copying textures")
 
 add_custom_command(TARGET OpenGLProject POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory

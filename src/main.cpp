@@ -3,13 +3,13 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include "shaders/Shader.h"
+#include "Shader.h"
 #include "Model.h"
 #include <iostream>
 #include <fstream>
-#include "Camera.h"
 #include "StreetLamp.h"
 #include "CarHeadlight.h"
+#include "Camera.h"
 
 // Rozmiar okna
 const unsigned int SCR_WIDTH = 1300;
