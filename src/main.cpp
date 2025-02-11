@@ -210,6 +210,7 @@ int main()
             glm::vec3 upDirection(0.0f, 1.0f, 0.0f);
 
             view = glm::lookAt(topViewPosition, carPosition, upDirection);
+            shader.setVec3("viewPos", topViewPosition);
         }
 
         else if (activeCamera == FOLLOW) {
@@ -222,14 +223,16 @@ int main()
             view = glm::lookAt(followViewPosition, carPosition, upDirection);
             followCamera.Position = followViewPosition;
             followCamera.Up = upDirection;
+
+            shader.setVec3("viewPos", followViewPosition);
         }
         else {
             // Domyśln kamera
             view = camera.GetViewMatrix();
+            shader.setVec3("viewPos", camera.Position);
         }
 
         shader.setMat4("view", view);
-        shader.setVec3("viewPos", camera.Position);
         if (isNight) {
             shader.setFloat("fogDensity", 0.035f); // Gęstsza mgła w nocy
             shader.setVec3("fogColor", glm::vec3(0.1f, 0.1f, 0.2f)); // Ciemna mgła nocna
