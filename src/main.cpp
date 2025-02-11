@@ -15,10 +15,8 @@
 const unsigned int SCR_WIDTH = 1300;
 const unsigned int SCR_HEIGHT = 900;
 
-// Kamera
 enum CameraMode { DEFAULT, TOP, FOLLOW };
 CameraMode activeCamera = DEFAULT;
-
 Camera topCamera(glm::vec3(0.0f, 20.0f, 10.0f));
 Camera followCamera(glm::vec3(0.0f, 2.0f, 5.0f));
 Camera camera(glm::vec3(0.0f, 2.0f, 10.0f));
@@ -35,12 +33,9 @@ float headlightIntensity = 0.5f;
 bool usePhongShading = true;
 
 
-
-// Obsługa wejścia
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window, float deltaTime);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 void updateCarMovement(float deltaTime);
 
 int main()
@@ -62,37 +57,31 @@ int main()
 
     // Obsługa myszy
     glfwSetCursorPosCallback(window, mouse_callback);
-    glfwSetScrollCallback(window, scroll_callback);
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); // Ukrycie kursora
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-    // Inicjalizacja GLAD
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
 
-    // Włącz test głębokości
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Załadowanie shaderów
-    Shader shader("shaders/vertex_shader.glsl", "shaders/fragment_shader.glsl");
-
-    // Wczytanie modeli
-    Model carmodel("models/car/scene.gltf");
-    Model cityModel("models/city/scene.gltf");
-    Model sphere("models/sphere/scene.gltf");
-
-    // Macierz projekcji
-    glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000000.0f);
 
     float deltaTime = 0.0f;
     float lastFrame = 0.0f;
 
+    Shader shader("shaders/vertex_shader.glsl", "shaders/fragment_shader.glsl");
+    Model carmodel("models/car/scene.gltf");
+    Model cityModel("models/city/scene.gltf");
+    Model sphere("models/sphere/scene.gltf");
+
     StreetLamp streetLamp(glm::vec3(-5.7f, 2.3f, 5.4f),
         glm::vec3(0.0f, -1.0f, 0.0f),
         glm::vec3(1.0f, 0.8f, 0.6f),
-        5.0f,                       
+        5.0f,
         glm::cos(glm::radians(35.0f)),
         glm::cos(glm::radians(35.5f)),
         3.0);
@@ -101,24 +90,23 @@ int main()
         glm::vec3(carPosition.x - 0.4f, carPosition.y + 0.2f, carPosition.z + 1.0f),
         glm::vec3(0.0f, -0.2f, 1.0f),
         glm::vec3(0.9f, 0.85f, 0.7f),
-        0.5f,                        
+        0.5f,
         glm::cos(glm::radians(16.0f)),
         glm::cos(glm::radians(22.0f)),
-        4.0f                       
+        4.0f
     );
-
     CarHeadlight rightHeadlight(
         glm::vec3(carPosition.x + 0.4f, carPosition.y + 0.2f, carPosition.z + 1.0f),
         glm::vec3(0.0f, -0.2f, 1.0f),
         glm::vec3(0.9f, 0.85f, 0.7f),
-        0.5f,                         
+        0.5f,
         glm::cos(glm::radians(16.0f)),
         glm::cos(glm::radians(22.0f)),
-        4.0f                          
+        4.0f
     );
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    // Główna pętla renderująca
+
+    glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000000.0f);
+
     while (!glfwWindowShouldClose(window))
     {
         float currentFrame = glfwGetTime();
@@ -126,14 +114,16 @@ int main()
         lastFrame = currentFrame;
 
         processInput(window, deltaTime);
-
         updateCarMovement(deltaTime);
+
+
 
         isNight ? glClearColor(0.02f, 0.02f, 0.1f, 1.0f) : glClearColor(0.6f, 0.8f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         shader.use();
         shader.setInt("shadingMode", usePhongShading ? 1 : 0);
+        shader.setMat4("projection", projection);
 
         if (isNight) {
             glm::vec3 lightColor = glm::vec3(0.2f, 0.2f, 0.5f);
@@ -142,6 +132,7 @@ int main()
             shader.setVec3("lightDir", lightDirection);
             shader.setVec3("lightColor", lightColor);
             shader.setVec3("ambientColor", ambientColor);
+
         }
         else {
             glm::vec3 lightColor = glm::vec3(1.2f, 1.1f, 0.9f);
@@ -163,31 +154,24 @@ int main()
             shader.setFloat("streetLight.radius", streetLamp.radius);
         }
         else {
-            shader.setVec3("streetLight.color", glm::vec3(0.0f)); // Wyłączenie latarni w dzień
+            shader.setVec3("streetLight.color", glm::vec3(0.0f));
         }
 
         // reflektory
 
-       /// Macierz obrotu dla reflektorów
         glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), glm::radians(carRotation), glm::vec3(0.0f, 1.0f, 0.0f));
-
-        // Przekształcenie kierunku reflektorów względem obrotu samochodu
         glm::vec3 transformedHeadlightDirection = glm::vec3(rotationMatrix * glm::vec4(headlightDirection, 0.0f));
 
-        // Pozycje reflektorów
         glm::vec3 headlightOffsetLeft = glm::vec3(1.2f, 0.3f, -5.2f);
         glm::vec3 headlightOffsetRight = glm::vec3(2.2f, 0.3f, -5.2f);
         leftHeadlight.position = carPosition + glm::vec3(rotationMatrix * glm::vec4(headlightOffsetLeft, 1.0f));
         rightHeadlight.position = carPosition + glm::vec3(rotationMatrix * glm::vec4(headlightOffsetRight, 1.0f));
 
-        // Przypisanie zaktualizowanego kierunku do reflektorów
         leftHeadlight.direction = glm::normalize(transformedHeadlightDirection);
         rightHeadlight.direction = glm::normalize(transformedHeadlightDirection);
         leftHeadlight.intensity = headlightIntensity;
         rightHeadlight.intensity = headlightIntensity;
 
-
-        // Przekazanie do shadera
         shader.setVec3("headlightLeft.position", leftHeadlight.position);
         shader.setVec3("headlightLeft.direction", leftHeadlight.direction);
         shader.setVec3("headlightLeft.color", leftHeadlight.color* leftHeadlight.intensity);
@@ -203,8 +187,8 @@ int main()
         shader.setFloat("headlightRight.radius", rightHeadlight.radius);
 
 
+        // Kamera
         glm::mat4 view;
-
         if (activeCamera == TOP) {
             glm::vec3 topViewPosition = glm::vec3(-68.0f, 12.0f, -11.0f);
             glm::vec3 upDirection(0.0f, 1.0f, 0.0f);
@@ -227,26 +211,25 @@ int main()
             shader.setVec3("viewPos", followViewPosition);
         }
         else {
-            // Domyśln kamera
             view = camera.GetViewMatrix();
             shader.setVec3("viewPos", camera.Position);
         }
-
         shader.setMat4("view", view);
+
+        // mgła
         if (isNight) {
-            shader.setFloat("fogDensity", 0.035f); // Gęstsza mgła w nocy
-            shader.setVec3("fogColor", glm::vec3(0.1f, 0.1f, 0.2f)); // Ciemna mgła nocna
+            shader.setFloat("fogDensity", 0.035f);
+            shader.setVec3("fogColor", glm::vec3(0.1f, 0.1f, 0.2f));
         }
         else {
-            shader.setFloat("fogDensity", 0.02f); // Mniej gęsta mgła w dzień
-            shader.setVec3("fogColor", glm::vec3(0.6f, 0.7f, 0.8f)); // Niebiesko-biała mgła dzienna
+            shader.setFloat("fogDensity", 0.02f);
+            shader.setVec3("fogColor", glm::vec3(0.6f, 0.7f, 0.8f));
         }
-        shader.setMat4("projection", projection);
-
-        // Macierz dla miasta - poprawna pozycja
+        
+        // Miasto
         glm::mat4 cityModelMat = glm::mat4(1.0f);
-        cityModelMat = glm::translate(cityModelMat, glm::vec3(0.0f, -2.0f, 0.0f)); // Przesunięcie w dół
-        cityModelMat = glm::rotate(cityModelMat, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f)); // Obrót poprawiony
+        cityModelMat = glm::translate(cityModelMat, glm::vec3(0.0f, -2.0f, 0.0f));
+        cityModelMat = glm::rotate(cityModelMat, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
         shader.setMat4("model", cityModelMat);
         cityModel.Draw(shader);
 
@@ -258,13 +241,11 @@ int main()
         shader.setMat4("model", sphereModelMat);
         sphere.Draw(shader);
 
-
-        // Rysowanie samochodu
+        // Samochód
         glm::mat4 carModelMat = glm::mat4(1.0f);
         carModelMat = glm::translate(carModelMat, carPosition);
         carModelMat = glm::scale(carModelMat, glm::vec3(0.1f, 0.1f, 0.1f));
         carModelMat = glm::rotate(carModelMat, glm::radians(carRotation), glm::vec3(0.0f, 1.0f, 0.0f));
-
         shader.setMat4("model", carModelMat);
         carmodel.Draw(shader);
 
@@ -272,7 +253,6 @@ int main()
         glfwPollEvents();
     }
 
-    // Zamykanie aplikacji
     glfwTerminate();
     return 0;
 }
@@ -288,10 +268,9 @@ void processInput(GLFWwindow* window, float deltaTime)
     static bool keyNPPressed = false;
     static bool keyGPPressed = false;
 
-
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
-
+    
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         camera.ProcessKeyboard(FORWARD, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
@@ -300,47 +279,33 @@ void processInput(GLFWwindow* window, float deltaTime)
         camera.ProcessKeyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+        camera.ProcessKeyboard(UP, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
+        camera.ProcessKeyboard(DOWN, deltaTime);
 
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
         camera.ProcessRoll(-1.0f);
     if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
         camera.ProcessRoll(1.0f);
 
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-        camera.ProcessKeyboard(UP, deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
-        camera.ProcessKeyboard(DOWN, deltaTime);
-
     if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS && !keyPressed) {
         activeCamera = DEFAULT;
         keyPressed = true;
-        std::cout << "Active Camera: DEFAULT" << std::endl;
     }
     if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS && !keyPressed) {
         activeCamera = TOP;
         keyPressed = true;
-        std::cout << "Active Camera: TOP" << std::endl;
     }
     if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS && !keyPressed) {
         activeCamera = FOLLOW;
         keyPressed = true;
-        std::cout << "Active Camera: FOLLOW" << std::endl;
     }
 
     if (glfwGetKey(window, GLFW_KEY_1) == GLFW_RELEASE &&
         glfwGetKey(window, GLFW_KEY_2) == GLFW_RELEASE &&
         glfwGetKey(window, GLFW_KEY_3) == GLFW_RELEASE) {
         keyPressed = false;
-    }
-
-    if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS && !keyNPPressed) {
-        isNight = !isNight;
-        keyNPPressed = true;
-        std::cout << "Tryb: " << (isNight ? "Noc" : "Dzień") << std::endl;
-    }
-
-    if (glfwGetKey(window, GLFW_KEY_N) == GLFW_RELEASE) {
-        keyNPPressed = false;
     }
 
     if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
@@ -352,21 +317,16 @@ void processInput(GLFWwindow* window, float deltaTime)
     if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
         headlightDirection.x += 0.005f;
 
-    if (glfwGetKey(window, GLFW_KEY_PAGE_UP) == GLFW_PRESS) {
+    if (glfwGetKey(window, GLFW_KEY_PAGE_UP) == GLFW_PRESS) 
         headlightIntensity = glm::min(1.0f, headlightIntensity + 0.005f);
-        std::cout << "Intensywność reflektorów: " << headlightIntensity << std::endl;
-    }
-    if (glfwGetKey(window, GLFW_KEY_PAGE_DOWN) == GLFW_PRESS) {
+    if (glfwGetKey(window, GLFW_KEY_PAGE_DOWN) == GLFW_PRESS)
         headlightIntensity = glm::max(0.0f, headlightIntensity - 0.005f);
-        std::cout << "Intensywność reflektorów: " << headlightIntensity << std::endl;
-    }
+    
 
     if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS && !keyNPPressed) {
         isNight = !isNight;
         keyNPPressed = true;
-        std::cout << "Tryb: " << (isNight ? "Noc" : "Dzień") << std::endl;
     }
-
     if (glfwGetKey(window, GLFW_KEY_N) == GLFW_RELEASE) {
         keyNPPressed = false;
     }
@@ -374,9 +334,7 @@ void processInput(GLFWwindow* window, float deltaTime)
     if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS && !keyGPPressed) {
         usePhongShading = !usePhongShading;
         keyGPPressed = true;
-        std::cout << "Shading mode: " << (usePhongShading ? "Phong" : "Gouraud") << std::endl;
     }
-
     if (glfwGetKey(window, GLFW_KEY_G) == GLFW_RELEASE) {
         keyGPPressed = false;
     }
@@ -397,11 +355,6 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
     lastY = ypos;
 
     camera.ProcessMouseMovement(xoffset, yoffset);
-}
-
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
-{
-    camera.ProcessMouseScroll(yoffset);
 }
 
 void updateCarMovement(float deltaTime) {
