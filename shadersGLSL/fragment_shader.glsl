@@ -6,7 +6,10 @@ in vec2 texCoord;
 in vec3 fragPos;
 in vec3 fragNormal;
 
-uniform bool isSphere;
+
+uniform float fogDensity;
+uniform vec3 fogColor;
+uniform vec3 viewPos;
 
 uniform sampler2D textureAlbedo;
 uniform sampler2D textureNormal;
@@ -15,7 +18,6 @@ uniform sampler2D textureRoughness;
 uniform vec3 lightDir;
 uniform vec3 lightColor;
 uniform vec3 ambientColor;
-uniform vec3 viewPos;
 
 struct StreetLight {
     vec3 position;
@@ -64,8 +66,18 @@ void main()
     lighting += CalculateHeadlight(normalize(fragNormal), fragPos, headlightLeft);
     lighting += CalculateHeadlight(normalize(fragNormal), fragPos, headlightRight);
 
+    // Obliczenie odleg³oœci fragmentu od kamery
+    float distance = length(viewPos - fragPos);
+
+    // Ulepszona funkcja t³umienia mg³y (lepszy efekt)
+    float fogFactor = exp(-pow(distance * fogDensity, 2.0));
+    fogFactor = clamp(fogFactor, 0.0, 1.0);
+
+    // Miksowanie œwiat³a sceny z mg³¹
+    vec3 finalColor = mix(fogColor, lighting, fogFactor);
+
     // Ustawienie koñcowego koloru
-    FragColor = vec4(lighting, 1.0);
+    FragColor = vec4(finalColor, 1.0);
 }
 
 
@@ -105,39 +117,33 @@ vec3 CalculateStreetLight(vec3 normal, vec3 fragPos)
     // Kierunek od fragmentu do Ÿród³a œwiat³a
     vec3 toLight = streetLight.position - fragPos;
     float distance = length(toLight);
-    
-    // Normalizacja kierunku œwiat³a
     vec3 lightDirNorm = normalize(toLight);
 
-    // K¹t miêdzy kierunkiem œwiat³a a jego sto¿kiem
+    // K¹t miêdzy kierunkiem latarni a fragmentem sceny
     float theta = dot(lightDirNorm, normalize(-streetLight.direction));
 
-    // Wygaszanie œwiat³a w zale¿noœci od odleg³oœci
-    float attenuation = exp(-pow(distance / streetLight.radius, 2.0));
+    // Sprawdzenie, czy fragment jest w sto¿ku œwiat³a latarni
+    float spotlightIntensity = smoothstep(streetLight.outerCutoff, streetLight.cutoff, theta);
 
-    // Jeœli fragment jest wewn¹trz sto¿ka œwiat³a
-    if (theta > streetLight.cutoff)
-    {
-        // Wartoœæ spotlighta (przejœcie od krawêdzi do œrodka)
-        float spotlightIntensity = (theta - streetLight.outerCutoff) / (streetLight.cutoff - streetLight.outerCutoff);
-        spotlightIntensity = clamp(spotlightIntensity, 0.0, 1.0);
+    // Wygaszanie œwiat³a na podstawie odleg³oœci
+    float attenuation = 1.0 / (1.0 + streetLight.radius * distance + (streetLight.radius * distance * distance));
 
-        // Nowe wygaszanie – silne œwiat³o w œrodku, malej¹ce ku brzegom
-        float spotlightFade = smoothstep(0.0, 1.0, pow(spotlightIntensity, 3.0));
+    // Oœwietlenie dyfuzyjne (rozproszone)
+    float diff = max(dot(normal, lightDirNorm), 0.0);
 
-        // Dyfuzyjne oœwietlenie (bardziej miêkkie)
-        float diff = max(dot(normal, lightDirNorm), 0.0);
+    // Oœwietlenie specularne (odbicia œwiat³a)
+    vec3 viewDir = normalize(viewPos - fragPos);
+    vec3 reflectDir = reflect(-lightDirNorm, normal);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
 
-        // Nowe t³umienie – im dalej od œrodka sto¿ka, tym mniej œwiat³a
-        float centerIntensity = 1.0 - clamp(distance / (streetLight.radius * 0.8), 0.0, 1.0);
-        centerIntensity = pow(centerIntensity, 2.0); // Wzmocnienie efektu
+    // Finalne œwiat³o latarni = œwiat³o dyfuzyjne + specularne + zanikanie
+    vec3 ambient = streetLight.color * 0.2;
+    vec3 diffuse = streetLight.color * diff * spotlightIntensity;
+    vec3 specular = streetLight.color * spec * 0.5 * spotlightIntensity;
 
-        // Finalne œwiat³o
-        return streetLight.color * diff * attenuation * spotlightFade * centerIntensity;
-    }
-
-    return vec3(0.0); // Jeœli poza zakresem, brak œwiat³a
+    return ambient*attenuation + diffuse* attenuation + specular* attenuation;
 }
+
 
 
 

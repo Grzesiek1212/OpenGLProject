@@ -30,6 +30,10 @@ float carRotation = -90.0f;
 enum CarState { MOVING_FORWARD, TURNING_RIGHT, MOVING_FORWARD_AFTER_TURN };
 CarState carState = MOVING_FORWARD;
 bool isNight = false;
+glm::vec3 headlightDirection = glm::vec3(0.0f, -0.3f, 1.0f);
+float headlightIntensity = 0.5f;
+bool usePhongShading = true;
+
 
 
 // Obsługa wejścia
@@ -88,10 +92,10 @@ int main()
     StreetLamp streetLamp(glm::vec3(-5.7f, 2.3f, 5.4f),
         glm::vec3(0.0f, -1.0f, 0.0f),
         glm::vec3(1.0f, 0.8f, 0.6f),
-        3.0f,                       
+        5.0f,                       
         glm::cos(glm::radians(35.0f)),
         glm::cos(glm::radians(35.5f)),
-        7.5f);
+        3.0);
 
     CarHeadlight leftHeadlight(
         glm::vec3(carPosition.x - 0.4f, carPosition.y + 0.2f, carPosition.z + 1.0f),
@@ -112,9 +116,8 @@ int main()
         glm::cos(glm::radians(22.0f)),
         4.0f                          
     );
-
-
-
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     // Główna pętla renderująca
     while (!glfwWindowShouldClose(window))
     {
@@ -163,34 +166,40 @@ int main()
         }
 
         // reflektory
-         
-        glm::vec3 headlightOffsetLeft = glm::vec3(1.2f, 0.3f, -5.2f);
-        glm::vec3 headlightOffsetRight = glm::vec3(2.2f, 0.3f, -5.2f);
+
+       /// Macierz obrotu dla reflektorów
         glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), glm::radians(carRotation), glm::vec3(0.0f, 1.0f, 0.0f));
 
+        // Przekształcenie kierunku reflektorów względem obrotu samochodu
+        glm::vec3 transformedHeadlightDirection = glm::vec3(rotationMatrix * glm::vec4(headlightDirection, 0.0f));
+
+        // Pozycje reflektorów
+        glm::vec3 headlightOffsetLeft = glm::vec3(1.2f, 0.3f, -5.2f);
+        glm::vec3 headlightOffsetRight = glm::vec3(2.2f, 0.3f, -5.2f);
         leftHeadlight.position = carPosition + glm::vec3(rotationMatrix * glm::vec4(headlightOffsetLeft, 1.0f));
         rightHeadlight.position = carPosition + glm::vec3(rotationMatrix * glm::vec4(headlightOffsetRight, 1.0f));
 
-        glm::vec3 headlightDirection = glm::vec3(0.0f, -0.3f, 1.0f);
-        leftHeadlight.direction = glm::vec3(rotationMatrix * glm::vec4(headlightDirection, 0.0f));
-        rightHeadlight.direction = glm::vec3(rotationMatrix * glm::vec4(headlightDirection, 0.0f));
+        // Przypisanie zaktualizowanego kierunku do reflektorów
+        leftHeadlight.direction = glm::normalize(transformedHeadlightDirection);
+        rightHeadlight.direction = glm::normalize(transformedHeadlightDirection);
+        leftHeadlight.intensity = headlightIntensity;
+        rightHeadlight.intensity = headlightIntensity;
+
 
         // Przekazanie do shadera
         shader.setVec3("headlightLeft.position", leftHeadlight.position);
         shader.setVec3("headlightLeft.direction", leftHeadlight.direction);
-        shader.setVec3("headlightLeft.color", leftHeadlight.color * leftHeadlight.intensity);
+        shader.setVec3("headlightLeft.color", leftHeadlight.color* leftHeadlight.intensity);
         shader.setFloat("headlightLeft.cutoff", leftHeadlight.cutoff);
         shader.setFloat("headlightLeft.outerCutoff", leftHeadlight.outerCutoff);
         shader.setFloat("headlightLeft.radius", leftHeadlight.radius);
 
         shader.setVec3("headlightRight.position", rightHeadlight.position);
         shader.setVec3("headlightRight.direction", rightHeadlight.direction);
-        shader.setVec3("headlightRight.color", rightHeadlight.color * rightHeadlight.intensity);
+        shader.setVec3("headlightRight.color", rightHeadlight.color* rightHeadlight.intensity);
         shader.setFloat("headlightRight.cutoff", rightHeadlight.cutoff);
         shader.setFloat("headlightRight.outerCutoff", rightHeadlight.outerCutoff);
         shader.setFloat("headlightRight.radius", rightHeadlight.radius);
-        
-
 
 
         glm::mat4 view;
@@ -220,7 +229,14 @@ int main()
 
         shader.setMat4("view", view);
         shader.setVec3("viewPos", camera.Position);
-
+        if (isNight) {
+            shader.setFloat("fogDensity", 0.035f); // Gęstsza mgła w nocy
+            shader.setVec3("fogColor", glm::vec3(0.1f, 0.1f, 0.2f)); // Ciemna mgła nocna
+        }
+        else {
+            shader.setFloat("fogDensity", 0.02f); // Mniej gęsta mgła w dzień
+            shader.setVec3("fogColor", glm::vec3(0.6f, 0.7f, 0.8f)); // Niebiesko-biała mgła dzienna
+        }
         shader.setMat4("projection", projection);
 
         // Macierz dla miasta - poprawna pozycja
@@ -267,6 +283,7 @@ void processInput(GLFWwindow* window, float deltaTime)
     static bool keyPressed = false;
     static bool keyNPPressed = false;
 
+
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
@@ -312,13 +329,46 @@ void processInput(GLFWwindow* window, float deltaTime)
     }
 
     if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS && !keyNPPressed) {
-        isNight = !isNight; // Przełącz tryb
-        keyNPPressed = true; // Zablokowanie zmiany do momentu puszczenia klawisza
+        isNight = !isNight;
+        keyNPPressed = true;
         std::cout << "Tryb: " << (isNight ? "Noc" : "Dzień") << std::endl;
     }
 
     if (glfwGetKey(window, GLFW_KEY_N) == GLFW_RELEASE) {
-        keyNPPressed = false; // Reset flagi po puszczeniu klawisza
+        keyNPPressed = false;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
+        headlightDirection.y += 0.005f;
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
+        headlightDirection.y -= 0.005f;
+    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
+        headlightDirection.x -= 0.005f;
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
+        headlightDirection.x += 0.005f;
+
+    if (glfwGetKey(window, GLFW_KEY_PAGE_UP) == GLFW_PRESS) {
+        headlightIntensity = glm::min(1.0f, headlightIntensity + 0.005f);
+        std::cout << "Intensywność reflektorów: " << headlightIntensity << std::endl;
+    }
+    if (glfwGetKey(window, GLFW_KEY_PAGE_DOWN) == GLFW_PRESS) {
+        headlightIntensity = glm::max(0.0f, headlightIntensity - 0.005f);
+        std::cout << "Intensywność reflektorów: " << headlightIntensity << std::endl;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS && !keyNPPressed) {
+        isNight = !isNight;
+        keyNPPressed = true;
+        std::cout << "Tryb: " << (isNight ? "Noc" : "Dzień") << std::endl;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_N) == GLFW_RELEASE) {
+        keyNPPressed = false;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS) {
+        usePhongShading = !usePhongShading;
+        std::cout << "Shading mode: " << (usePhongShading ? "Phong" : "Gouraud") << std::endl;
     }
 }
 
