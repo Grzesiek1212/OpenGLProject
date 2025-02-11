@@ -133,6 +133,7 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         shader.use();
+        shader.setInt("shadingMode", usePhongShading ? 1 : 0);
 
         if (isNight) {
             glm::vec3 lightColor = glm::vec3(0.2f, 0.2f, 0.5f);
@@ -282,6 +283,7 @@ void processInput(GLFWwindow* window, float deltaTime)
 {
     static bool keyPressed = false;
     static bool keyNPPressed = false;
+    static bool keyGPPressed = false;
 
 
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -366,9 +368,14 @@ void processInput(GLFWwindow* window, float deltaTime)
         keyNPPressed = false;
     }
 
-    if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS) {
+    if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS && !keyGPPressed) {
         usePhongShading = !usePhongShading;
+        keyGPPressed = true;
         std::cout << "Shading mode: " << (usePhongShading ? "Phong" : "Gouraud") << std::endl;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_G) == GLFW_RELEASE) {
+        keyGPPressed = false;
     }
 }
 
