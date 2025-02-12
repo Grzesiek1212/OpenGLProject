@@ -31,7 +31,7 @@ bool isNight = false;
 glm::vec3 headlightDirection = glm::vec3(0.0f, -0.3f, 1.0f);
 float headlightIntensity = 0.5f;
 bool usePhongShading = true;
-bool useBumpMapping = true;
+bool useBumpMapping = false;
 
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -52,11 +52,13 @@ int main()
     Model carmodel("models/car/scene.gltf");
     Model cityModel("models/city/scene.gltf");
     Model sphere("models/sphere/scene.gltf");
+    //Model sphere_tank("models/backpack/backpack.obj");
     Model sphere_tank("models/sphere_tank/scene.gltf");
 
     unsigned int carNormalMap = 0;
     unsigned int cityNormalMap = 0;
     unsigned int sphereNormalMap = 0;
+    unsigned int sphereTankNormalMap = 0;
 
     for (Texture tex : carmodel.GetMeshes()[0].textures) {
         if (tex.type == "texture_normal") {
@@ -75,6 +77,13 @@ int main()
     for (Texture tex : sphere.GetMeshes()[0].textures) {
         if (tex.type == "texture_normal") {
             sphereNormalMap = tex.id;
+            break;
+        }
+    }
+
+    for (Texture tex : sphere_tank.GetMeshes()[0].textures) {
+        if (tex.type == "texture_normal") {
+            sphereTankNormalMap = tex.id;
             break;
         }
     }
@@ -251,11 +260,10 @@ int main()
 
         // Kula Tank
         glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, sphereNormalMap);
+        glBindTexture(GL_TEXTURE_2D, sphereTankNormalMap);
         glm::mat4 sphereTankModelMat = glm::mat4(1.0f);
         sphereTankModelMat = glm::translate(sphereTankModelMat, glm::vec3(-8.0f, 5.0f, 0.0f));
-        sphereTankModelMat = glm::scale(sphereTankModelMat, glm::vec3(1.5f, 1.5f, 1.5f));
-        sphereTankModelMat = glm::scale(sphereTankModelMat, glm::vec3(0.2f, 0.2f, 0.2f));
+        sphereTankModelMat = glm::scale(sphereTankModelMat, glm::vec3(0.8f, 0.8f, 0.8f));
         shader.setMat4("model", sphereTankModelMat);
         sphere_tank.Draw(shader);
 

@@ -72,14 +72,18 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
 			vector.z = mesh->mBitangents[i].z;
 			vertex.Bitangent = vector;
 		}
-		else if (!mesh->HasTangentsAndBitangents() && mesh->mTangents) {
-			vector.x = mesh->mTangents[i].x;
-			vector.y = mesh->mTangents[i].y;
-			vector.z = mesh->mTangents[i].z;
-			vertex.Tangent = glm::normalize(vector);
-
-			vertex.Bitangent = glm::normalize(glm::cross(vertex.Tangent, vertex.Normal));
+		else if (!mesh->HasTangentsAndBitangents() && mesh->mTangents && mesh->mNormals) {
+			glm::vec3 tangentVec(mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z);
+			if (glm::length(tangentVec) > 1e-6f) {
+				vertex.Tangent = glm::normalize(tangentVec);
+				vertex.Bitangent = glm::normalize(glm::cross(vertex.Tangent, vertex.Normal));
+			}
+			else {
+				vertex.Tangent = glm::vec3(1.0f, 0.0f, 0.0f);
+				vertex.Bitangent = glm::vec3(0.0f, 1.0f, 0.0f);
+			}
 		}
+
 
 		if (mesh->mTextureCoords[0])
 		{
@@ -103,51 +107,6 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
 			indices.push_back(face.mIndices[j]);
 	}
 
-	if (!mesh->HasTangentsAndBitangents() && !mesh->mTangents) {
-    std::vector<glm::vec3> tanAccum(vertices.size(), glm::vec3(0.0f));
-    std::vector<glm::vec3> bitanAccum(vertices.size(), glm::vec3(0.0f));
-
-    for (unsigned int i = 0; i < indices.size(); i += 3) {
-        Vertex& v0 = vertices[indices[i]];
-        Vertex& v1 = vertices[indices[i + 1]];
-        Vertex& v2 = vertices[indices[i + 2]];
-
-        glm::vec3 edge1 = v1.Position - v0.Position;
-        glm::vec3 edge2 = v2.Position - v0.Position;
-        glm::vec2 deltaUV1 = v1.TexCoord - v0.TexCoord;
-        glm::vec2 deltaUV2 = v2.TexCoord - v0.TexCoord;
-
-		float det = (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
-		float f = (fabs(det) > 1e-6f) ? (1.0f / det) : 0.0f;
-
-        glm::vec3 tangent;
-        tangent.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
-        tangent.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
-        tangent.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
-
-        glm::vec3 bitangent;
-        bitangent.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
-        bitangent.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
-        bitangent.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
-
-        // Dodajemy tangenty do ka¿dego wierzcho³ka
-        tanAccum[indices[i]] += tangent;
-        tanAccum[indices[i + 1]] += tangent;
-        tanAccum[indices[i + 2]] += tangent;
-
-        bitanAccum[indices[i]] += bitangent;
-        bitanAccum[indices[i + 1]] += bitangent;
-        bitanAccum[indices[i + 2]] += bitangent;
-    }
-
-    // Normalizujemy tangenty i bitangenty po akumulacji
-    for (unsigned int i = 0; i < vertices.size(); i++) {
-        vertices[i].Tangent = glm::normalize(tanAccum[i]);
-        vertices[i].Bitangent = glm::normalize(bitanAccum[i]);
-    }
-}
-
-
 	// process material
 	if (mesh->mMaterialIndex >= 0)
 	{
@@ -160,12 +119,12 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
 		textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
 
 		vector<Texture> normalMaps = loadMaterialTextures(material, aiTextureType_NORMALS, "texture_normal");
-		textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
 
 		if (normalMaps.empty()) {
 			vector<Texture> heightMaps = loadMaterialTextures(material, aiTextureType_HEIGHT, "texture_normal");
 			textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
 		}
+		textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
 
 	}
 
