@@ -52,7 +52,6 @@ int main()
     Model carmodel("models/car/scene.gltf");
     Model cityModel("models/city/scene.gltf");
     Model sphere("models/sphere/scene.gltf");
-    //Model sphere_tank("models/backpack/backpack.obj");
     Model sphere_tank("models/sphere_tank/scene.gltf");
 
     unsigned int carNormalMap = 0;
@@ -139,7 +138,7 @@ int main()
 
         if (isNight) {
             glm::vec3 lightColor = glm::vec3(0.2f, 0.2f, 0.5f);
-            glm::vec3 ambientColor = glm::vec3(0.05f, 0.05f, 0.1f);
+            glm::vec3 ambientColor = glm::vec3(0.1f, 0.1f, 0.1f);
             glm::vec3 lightDirection = glm::vec3(0.1f, -1.0f, 0.2f);
             shader.setVec3("lightDir", lightDirection);
             shader.setVec3("lightColor", lightColor);
@@ -148,7 +147,7 @@ int main()
         }
         else {
             glm::vec3 lightColor = glm::vec3(1.2f, 1.1f, 0.9f);
-            glm::vec3 ambientColor = glm::vec3(0.5f, 0.5f, 0.5f);
+            glm::vec3 ambientColor = glm::vec3(0.7f, 0.7f, 0.7f);
             glm::vec3 lightDirection = glm::vec3(-0.2f, -1.0f, -0.3f);
 
             shader.setVec3("lightDir", lightDirection);

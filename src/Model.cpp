@@ -17,7 +17,7 @@ void Model::loadModel(string path)
 {
 	Assimp::Importer import;
 	const aiScene * scene = import.ReadFile(path, aiProcess_Triangulate |
-		aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+		aiProcess_FlipUVs  /* | aiProcess_CalcTangentSpace*/);
 	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE ||
 		!scene->mRootNode)
 	{
@@ -84,7 +84,6 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
 			}
 		}
 
-
 		if (mesh->mTextureCoords[0])
 		{
 			glm::vec2 vec;
@@ -107,6 +106,45 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
 			indices.push_back(face.mIndices[j]);
 	}
 
+	if (!mesh->HasTangentsAndBitangents()) {
+		for (unsigned int i = 0; i < indices.size(); i += 3) {
+			Vertex& v0 = vertices[indices[i]];
+			Vertex& v1 = vertices[indices[i + 1]];
+			Vertex& v2 = vertices[indices[i + 2]];
+
+			glm::vec3 edge1 = v1.Position - v0.Position;
+			glm::vec3 edge2 = v2.Position - v0.Position;
+			glm::vec2 deltaUV1 = v1.TexCoord - v0.TexCoord;
+			glm::vec2 deltaUV2 = v2.TexCoord - v0.TexCoord;
+
+			float f = (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+			if (fabs(f) > 1e-6f) f = 1.0f / f;
+			else f = 0.0f;
+
+			glm::vec3 tangent, bitangent;
+			tangent.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
+			tangent.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
+			tangent.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
+
+			bitangent.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
+			bitangent.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
+			bitangent.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
+
+			v0.Tangent += tangent;
+			v1.Tangent += tangent;
+			v2.Tangent += tangent;
+
+			v0.Bitangent += bitangent;
+			v1.Bitangent += bitangent;
+			v2.Bitangent += bitangent;
+		}
+
+		for (auto& vertex : vertices) {
+			vertex.Tangent = glm::normalize(vertex.Tangent);
+			vertex.Bitangent = glm::normalize(vertex.Bitangent);
+		}
+	}
+
 	// process material
 	if (mesh->mMaterialIndex >= 0)
 	{
@@ -124,7 +162,9 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
 			vector<Texture> heightMaps = loadMaterialTextures(material, aiTextureType_HEIGHT, "texture_normal");
 			textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
 		}
-		textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
+		else {
+			textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
+		}
 
 	}
 

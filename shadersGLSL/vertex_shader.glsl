@@ -100,18 +100,17 @@ vec3 CalculateHeadlight(vec3 normal, vec3 fragPos, CarHeadlight headlight)
     float gaussianFactor = exp(-pow(distance / headlight.radius, 2.5));
 
     float spotlightIntensity = smoothstep(headlight.outerCutoff, headlight.cutoff, theta);
-    spotlightIntensity = pow(spotlightIntensity, 2.0); // Wzmocnienie efektu
+    spotlightIntensity = pow(spotlightIntensity, 2.0);
 
     float halo = exp(-pow(distance / (headlight.radius * 0.7), 2.0)) * 0.2;
 
     vec3 reflectDir = reflect(-lightDirNorm, normal);
-    float spec = pow(max(dot(viewPos - fragPos, reflectDir), 0.0), 16.0);
+    float spec = pow(max(dot(normalize(viewPos - fragPos), reflectDir), 0.0), 16.0);
 
     float fog = exp(-distance * 0.04);
 
     return headlight.color * spotlightIntensity * gaussianFactor * (1.0 + spec + halo) * fog;
 }
-
 
 
 vec3 CalculateStreetLight(vec3 normal, vec3 fragPos)

@@ -140,7 +140,7 @@ vec3 CalculatePhongLighting(vec3 normal, vec3 fragPos, vec3 objectColor, float r
     vec3 norm = normal;
     vec3 lightDirNorm = normalize(-lightDir);
 
-    vec3 ambient = ambientColor * objectColor * 0.5;
+    vec3 ambient = ambientColor * objectColor * 0.7;
 
     float diff = max(dot(norm, lightDirNorm), 0.0);
     vec3 diffuse = lightColor * diff * objectColor;
