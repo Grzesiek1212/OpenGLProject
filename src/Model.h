@@ -19,6 +19,7 @@ public:
 		loadModel(path);
 	}
 	void Draw(Shader& shader);
+	const std::vector<Mesh>& GetMeshes() const;
 private:
 	vector<Mesh> meshes;
 	string directory;

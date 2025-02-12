@@ -6,6 +6,7 @@ in vec2 texCoord;
 in vec3 fragPos;
 in vec3 fragNormal;
 in vec3 gouraudColor;
+in mat3 TBN;
 
 uniform int shadingMode;
 uniform float fogDensity;
@@ -17,6 +18,7 @@ uniform sampler2D textureRoughness;
 uniform vec3 lightDir;
 uniform vec3 lightColor;
 uniform vec3 ambientColor;
+uniform bool useBumpMapping;
 
 struct StreetLight {
     vec3 position;
@@ -49,6 +51,13 @@ void main()
 {
     vec3 albedo = texture(textureAlbedo, texCoord).rgb;
     vec3 normalMap = texture(textureNormal, texCoord).rgb * 2.0 - 1.0;
+    vec3 normal;
+    if (useBumpMapping) {
+        normal = normalize(TBN * normalMap);
+    } else {
+        normal = normalize(fragNormal);
+    }
+
     float roughness = texture(textureRoughness, texCoord).r;
 
     vec3 lighting;
@@ -56,10 +65,10 @@ void main()
     if (shadingMode == 0) {
         lighting = gouraudColor * albedo;
     } else {
-       lighting = CalculatePhongLighting(normalize(fragNormal), fragPos, albedo, roughness);
-       lighting += CalculateStreetLight(normalize(fragNormal), fragPos);
-       lighting += CalculateHeadlight(normalize(fragNormal), fragPos, headlightLeft);
-       lighting += CalculateHeadlight(normalize(fragNormal), fragPos, headlightRight);
+       lighting = CalculatePhongLighting(normal, fragPos, albedo, roughness);
+       lighting += CalculateStreetLight(normal, fragPos);
+       lighting += CalculateHeadlight(normal, fragPos, headlightLeft);
+       lighting += CalculateHeadlight(normal, fragPos, headlightRight);
 	}
 
     float distance = length(viewPos - fragPos);
@@ -89,7 +98,7 @@ vec3 CalculateHeadlight(vec3 normal, vec3 fragPos, CarHeadlight headlight)
     float halo = exp(-pow(distance / (headlight.radius * 0.7), 2.0)) * 0.2;
 
     vec3 reflectDir = reflect(-lightDirNorm, normal);
-    float spec = pow(max(dot(viewPos - fragPos, reflectDir), 0.0), 16.0);
+    float spec = pow(max(dot(normalize(viewPos - fragPos), reflectDir), 0.0), 16.0);
 
     float fog = exp(-distance * 0.04);
 
@@ -128,7 +137,7 @@ vec3 CalculateStreetLight(vec3 normal, vec3 fragPos)
 
 vec3 CalculatePhongLighting(vec3 normal, vec3 fragPos, vec3 objectColor, float roughness)
 {
-    vec3 norm = normalize(normal);
+    vec3 norm = normal;
     vec3 lightDirNorm = normalize(-lightDir);
 
     vec3 ambient = ambientColor * objectColor * 0.5;

@@ -31,6 +31,7 @@ bool isNight = false;
 glm::vec3 headlightDirection = glm::vec3(0.0f, -0.3f, 1.0f);
 float headlightIntensity = 0.5f;
 bool usePhongShading = true;
+bool useBumpMapping = true;
 
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -51,6 +52,32 @@ int main()
     Model carmodel("models/car/scene.gltf");
     Model cityModel("models/city/scene.gltf");
     Model sphere("models/sphere/scene.gltf");
+    Model sphere_tank("models/sphere_tank/scene.gltf");
+
+    unsigned int carNormalMap = 0;
+    unsigned int cityNormalMap = 0;
+    unsigned int sphereNormalMap = 0;
+
+    for (Texture tex : carmodel.GetMeshes()[0].textures) {
+        if (tex.type == "texture_normal") {
+            carNormalMap = tex.id;
+            break;
+        }
+    }
+
+    for (Texture tex : cityModel.GetMeshes()[0].textures) {
+        if (tex.type == "texture_normal") {
+            cityNormalMap = tex.id;
+            break;
+        }
+    }
+
+    for (Texture tex : sphere.GetMeshes()[0].textures) {
+        if (tex.type == "texture_normal") {
+            sphereNormalMap = tex.id;
+            break;
+        }
+    }
 
     StreetLamp streetLamp(glm::vec3(-5.7f, 2.3f, 5.4f),
         glm::vec3(0.0f, -1.0f, 0.0f),
@@ -64,19 +91,19 @@ int main()
         glm::vec3(carPosition.x - 0.4f, carPosition.y + 0.2f, carPosition.z + 1.0f),
         glm::vec3(0.0f, -0.2f, 1.0f),
         glm::vec3(0.9f, 0.85f, 0.7f),
-        0.5f,
+        10.5f,
         glm::cos(glm::radians(16.0f)),
         glm::cos(glm::radians(22.0f)),
-        4.0f
+        8.0f
     );
     CarHeadlight rightHeadlight(
         glm::vec3(carPosition.x + 0.4f, carPosition.y + 0.2f, carPosition.z + 1.0f),
         glm::vec3(0.0f, -0.2f, 1.0f),
         glm::vec3(0.9f, 0.85f, 0.7f),
-        0.5f,
+        10.5f,
         glm::cos(glm::radians(16.0f)),
         glm::cos(glm::radians(22.0f)),
-        4.0f
+        8.0f
     );
 
     glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000000.0f);
@@ -96,6 +123,8 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         shader.use();
+        shader.setInt("textureNormal", 1);
+        shader.setBool("useBumpMapping", useBumpMapping);
         shader.setInt("shadingMode", usePhongShading ? 1 : 0);
         shader.setMat4("projection", projection);
 
@@ -201,6 +230,8 @@ int main()
         }
         
         // Miasto
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, cityNormalMap);
         glm::mat4 cityModelMat = glm::mat4(1.0f);
         cityModelMat = glm::translate(cityModelMat, glm::vec3(0.0f, -2.0f, 0.0f));
         cityModelMat = glm::rotate(cityModelMat, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
@@ -208,6 +239,8 @@ int main()
         cityModel.Draw(shader);
 
         // Kula
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, sphereNormalMap);
         glm::mat4 sphereModelMat = glm::mat4(1.0f);
         sphereModelMat = glm::translate(sphereModelMat, glm::vec3(0.0f, 5.0f, 0.0f));
         sphereModelMat = glm::scale(sphereModelMat, glm::vec3(1.5f, 1.5f, 1.5f));
@@ -215,7 +248,20 @@ int main()
         shader.setMat4("model", sphereModelMat);
         sphere.Draw(shader);
 
+
+        // Kula Tank
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, sphereNormalMap);
+        glm::mat4 sphereTankModelMat = glm::mat4(1.0f);
+        sphereTankModelMat = glm::translate(sphereTankModelMat, glm::vec3(-8.0f, 5.0f, 0.0f));
+        sphereTankModelMat = glm::scale(sphereTankModelMat, glm::vec3(1.5f, 1.5f, 1.5f));
+        sphereTankModelMat = glm::scale(sphereTankModelMat, glm::vec3(0.2f, 0.2f, 0.2f));
+        shader.setMat4("model", sphereTankModelMat);
+        sphere_tank.Draw(shader);
+
         // Samochód
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, carNormalMap);
         glm::mat4 carModelMat = glm::mat4(1.0f);
         carModelMat = glm::translate(carModelMat, carPosition);
         carModelMat = glm::scale(carModelMat, glm::vec3(0.1f, 0.1f, 0.1f));
@@ -241,6 +287,8 @@ void processInput(GLFWwindow* window, float deltaTime)
     static bool keyPressed = false;
     static bool keyNPPressed = false;
     static bool keyGPPressed = false;
+    static bool keyBPPressed = false;
+
 
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
@@ -311,6 +359,15 @@ void processInput(GLFWwindow* window, float deltaTime)
     }
     if (glfwGetKey(window, GLFW_KEY_G) == GLFW_RELEASE) {
         keyGPPressed = false;
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_B) == GLFW_PRESS && !keyBPPressed) {
+        useBumpMapping = !useBumpMapping;
+        std::cout << "Bump Mapping: " << (useBumpMapping ? "ON" : "OFF") << std::endl;
+        keyBPPressed = true;
+    }
+    if (glfwGetKey(window, GLFW_KEY_B) == GLFW_RELEASE) {
+        keyBPPressed = false;
     }
 }
 
